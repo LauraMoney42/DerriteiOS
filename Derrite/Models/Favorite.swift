@@ -1,9 +1,5 @@
-//
 //  Favorite.swift
 //  Derrite
-//
-//  Created by Claude on 7/27/25.
-//
 
 import Foundation
 import CoreLocation
@@ -17,7 +13,7 @@ struct FavoritePlace: Identifiable, Codable {
     let alertDistance: Double // in meters
     let enableSafetyAlerts: Bool
     let createdAt: TimeInterval
-    
+
     init(id: String = UUID().uuidString,
          name: String,
          description: String = "",
@@ -33,7 +29,7 @@ struct FavoritePlace: Identifiable, Codable {
         self.enableSafetyAlerts = enableSafetyAlerts
         self.createdAt = createdAt
     }
-    
+
     func getAlertDistanceText(isSpanish: Bool) -> String {
         switch alertDistance {
         case 1609.0:
@@ -52,11 +48,11 @@ struct FavoritePlace: Identifiable, Codable {
             return isSpanish ? "distancia personalizada" : "custom distance"
         }
     }
-    
+
     func getEnabledAlertsText(isSpanish: Bool) -> String {
         return isSpanish ? "Seguridad" : "Safety"
     }
-    
+
     func shouldReceiveAlert(category: ReportCategory) -> Bool {
         return category == .safety && enableSafetyAlerts
     }
@@ -70,7 +66,7 @@ struct FavoriteAlert: Identifiable, Codable {
     let distanceFromFavorite: Double
     let timestamp: TimeInterval
     var isViewed: Bool
-    
+
     init(id: String = UUID().uuidString,
          favoritePlace: FavoritePlace,
          report: Report,
@@ -84,20 +80,20 @@ struct FavoriteAlert: Identifiable, Codable {
         self.timestamp = timestamp
         self.isViewed = isViewed
     }
-    
+
     func getAlertMessage(isSpanish: Bool) -> String {
         let distance = String(format: "%.1f", distanceFromFavorite / 1609.0)
         if isSpanish {
-            return "Nueva alerta de seguridad en \(favoritePlace.name) (\(distance) millas)"
+            return "Alerta de seguridad \(distance) millas de \(favoritePlace.name)"
         } else {
-            return "New safety alert at \(favoritePlace.name) (\(distance) miles)"
+            return "Safety alert \(distance) miles from \(favoritePlace.name)"
         }
     }
-    
+
     var category: ReportCategory {
         return report.category
     }
-    
+
     var content: String {
         return report.originalText
     }

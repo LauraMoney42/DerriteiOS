@@ -3,7 +3,7 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
-Derrite is a highly secure, privacy-focused anonymous safety reporting iOS app built with SwiftUI. The app allows users to create location-based safety reports/pins that expire after 8 hours, with maximum anonymity and security.
+Alerta is a highly secure, privacy-focused anonymous safety reporting iOS app built with SwiftUI. The app allows users to create location-based safety reports/pins that expire after 8 hours, with maximum anonymity and security.
 
 ## Build and Run Commands
 ```bash
@@ -24,7 +24,7 @@ xcodebuild -project Derrite.xcodeproj -scheme Derrite -sdk iphonesimulator -dest
 - **Language**: Swift with SwiftUI framework
 - **Minimum iOS Version**: iOS 15.0+
 - **Main Entry Point**: `DerriteApp.swift` - SwiftUI App protocol implementation
-- **Dependencies**: Firebase SDK (v12.0.0), MapKit, CryptoKit
+- **Dependencies**: Firebase Messaging only (v12.0.0), MapKit, CryptoKit
 - **Backend**: https://backend-production-cfbe.up.railway.app
 - **Security Framework**: Custom SecurityManager with AES-GCM encryption
 
@@ -100,7 +100,7 @@ Before any deployment, verify:
 - [ ] Network requests have no tracking headers
 
 ## Key Dependencies
-- Firebase iOS SDK 12.0.0 (Messaging only)
+- Firebase iOS SDK 12.0.0 (Messaging only - Analytics removed for privacy)
 - MapKit (Apple's mapping framework)
 - CryptoKit (for AES-GCM encryption)
 - Security framework (for keychain storage)

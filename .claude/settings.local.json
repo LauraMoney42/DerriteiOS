@@ -8,7 +8,26 @@
       "Bash(mv:*)",
       "Bash(ls:*)",
       "Bash(find:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(cp:*)",
+      "Bash(afinfo:*)",
+      "Bash(swift:*)",
+      "Bash(grep:*)",
+      "Bash(sed:*)",
+      "Bash(awk:*)",
+      "Bash(python3:*)",
+      "Bash(sips:*)",
+      "Bash(xcrun simctl list:*)",
+      "Bash(security list-keychains:*)",
+      "Bash(security show-keychain-info:*)",
+      "Bash(security unlock-keychain:*)",
+      "Bash(xcrun simctl shutdown:*)",
+      "Bash(xcrun simctl erase:*)",
+      "Bash(timeout 60 xcodebuild:*)",
+      "Bash(gtimeout:*)",
+      "Bash(top:*)",
+      "Bash(pkill:*)",
+      "Bash(security find-identity:*)"
     ],
     "deny": []
   }

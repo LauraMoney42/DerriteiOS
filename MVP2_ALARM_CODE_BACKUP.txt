@@ -1,0 +1,552 @@
+# MVP2 ALARM CODE BACKUP - Silent Mode Override Implementation
+# This file contains all the code needed to implement emergency alert sounds that override silent mode
+# To be implemented in MVP2 after getting Apple's Critical Alerts entitlement
+
+## OVERVIEW
+The emergency alarm system was designed to:
+1. Play loud sounds even when iPhone is on silent mode
+2. Allow users to set emergency override distance (e.g., alerts within 0.5 miles override silent)
+3. Use special audio session categories that bypass silent switch
+4. Provide mute controls during alert playback
+
+## REQUIREMENTS FOR MVP2
+To fully implement this, you'll need:
+1. Apple's Critical Alerts entitlement (submit request to Apple)
+2. Add to Info.plist: <key>NSUserNotificationAlertStyle</key><string>critical</string>
+3. Update notification code to use .criticalAlert sound
+4. Background audio capability (already added to Info.plist)
+
+## CODE TO RESTORE FOR MVP2
+
+### 1. AlertNotificationView.swift - Complete Alarm System
+```swift
+//  AlertNotificationView.swift - FULL ALARM VERSION FOR MVP2
+//  Derrite
+
+import SwiftUI
+import AVFoundation
+import AudioToolbox
+
+struct AlertNotificationView: View {
+    let alertMessage: String
+    let reportLocation: String
+    let distance: String
+    let report: Report
+    let shouldOverrideSilent: Bool
+    let onDismiss: () -> Void
+    let onViewDetails: (Report) -> Void
+
+    @StateObject private var preferencesManager = PreferencesManager.shared
+    @State private var audioPlayer: AVAudioPlayer?
+    @State private var isAlarmPlaying = false
+    @State private var audioSession: AVAudioSession?
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Alert notification card
+            VStack(spacing: 12) {
+                // Alert header
+                HStack {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.title2)
+                        .foregroundColor(.red)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(alertMessage)
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .fontWeight(.semibold)
+
+                        Text("\\(reportLocation) • \\(distance)")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+
+                    Spacer()
+
+                    Button(action: onDismiss) {
+                        Image(systemName: "xmark")
+                            .font(.title3)
+                            .foregroundColor(.gray)
+                    }
+                }
+
+                // Report details
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(report.originalText)
+                        .font(.body)
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.leading)
+
+                    if !distance.isEmpty {
+                        Text(distance)
+                            .font(.body)
+                            .foregroundColor(.orange)
+                            .fontWeight(.medium)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                // Action buttons - RESTORE MUTE BUTTON FOR MVP2
+                HStack(spacing: 12) {
+                    Button(action: {
+                        if isAlarmPlaying {
+                            stopAlarm()
+                        } else {
+                            startAlarm()
+                        }
+                    }) {
+                        HStack {
+                            Image(systemName: isAlarmPlaying ? "speaker.slash" : "speaker")
+                                .font(.caption)
+                            Text(isAlarmPlaying ?
+                                 (preferencesManager.currentLanguage == "es" ? "Silenciar" : "Mute") :
+                                 (preferencesManager.currentLanguage == "es" ? "Silenciado" : "Muted"))
+                                .font(.caption)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(isAlarmPlaying ? Color.red.opacity(0.8) : Color.gray.opacity(0.3))
+                        .foregroundColor(.white)
+                        .cornerRadius(15)
+                    }
+
+                    Spacer()
+
+                    Button(action: {
+                        stopAlarm()
+                        onViewDetails(report)
+                    }) {
+                        HStack {
+                            Image(systemName: "info.circle")
+                                .font(.caption)
+                            Text(preferencesManager.currentLanguage == "es" ? "Ver detalles" : "View Details")
+                                .font(.caption)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color(UIColor.systemBlue).opacity(0.8))
+                        .foregroundColor(.white)
+                        .cornerRadius(15)
+                    }
+                }
+            }
+            .padding(16)
+            .background(Color.black.opacity(0.9))
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.red.opacity(0.6), lineWidth: 2)
+            )
+            .shadow(radius: 12)
+            .padding(.horizontal, 16)
+
+            Spacer()
+        }
+        .onAppear {
+            startAlarm()
+        }
+        .onDisappear {
+            stopAlarm()
+        }
+    }
+
+    // MARK: - Alarm Functions FOR MVP2
+    private func startAlarm() {
+        guard preferencesManager.enableSoundAlerts else { return }
+
+        // Set playing flag first
+        isAlarmPlaying = true
+
+        // Only setup special audio session if this specific alert should override silent mode
+        if shouldOverrideSilent {
+            setupAudioSession()
+        }
+
+        // Start playing sound
+        playAlarmSound()
+    }
+
+    private func stopAlarm() {
+        // Stop playing flag first to stop repeating timer
+        isAlarmPlaying = false
+
+        // Stop any audio player
+        audioPlayer?.stop()
+        audioPlayer = nil
+
+        // Restore audio session if it was modified
+        if shouldOverrideSilent {
+            restoreAudioSession()
+        }
+    }
+
+    private func setupAudioSession() {
+        guard shouldOverrideSilent else { return }
+
+        do {
+            audioSession = AVAudioSession.sharedInstance()
+
+            // Configure audio session to bypass silent mode for emergency alerts
+            // Use .playAndRecord category which ignores the silent switch
+            try audioSession?.setCategory(.playAndRecord, mode: .default, options: [.duckOthers, .defaultToSpeaker])
+            try audioSession?.setActive(true)
+        } catch {
+            // Failed to setup emergency audio session
+        }
+    }
+
+    private func restoreAudioSession() {
+        guard let audioSession = audioSession else { return }
+
+        do {
+            try audioSession.setActive(false, options: .notifyOthersOnDeactivation)
+        } catch {
+            // Failed to restore audio session
+        }
+
+        self.audioSession = nil
+    }
+
+    private func playAlarmSound() {
+        // For emergency alerts that should override silent, play a more urgent sound
+        if shouldOverrideSilent {
+            playEmergencyAlarm()
+            return
+        }
+        
+        // Try to play the custom safety_alarm.wav from Android app
+        if let soundURL = Bundle.main.url(forResource: "safety_alarm", withExtension: "wav") {
+            do {
+                audioPlayer = try AVAudioPlayer(contentsOf: soundURL)
+                audioPlayer?.volume = 0.7  // Reduced volume for regular alerts
+                audioPlayer?.play()
+            } catch {
+                // Fallback to system sound
+                AudioServicesPlaySystemSound(1007) // Pleasant notification sound
+            }
+        } else {
+            // Fallback to system sound if custom sound not found
+            AudioServicesPlaySystemSound(1007) // Pleasant notification sound
+        }
+
+        // Add vibration for additional feedback
+        if preferencesManager.enableVibration {
+            AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+        }
+
+        // Repeat the sound after it finishes (safety_alarm.wav is ~4 seconds long)
+        if isAlarmPlaying {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+                if self.isAlarmPlaying {
+                    self.playAlarmSound()
+                }
+            }
+        }
+    }
+
+    private func playEmergencyAlarm() {
+        // Create a custom alarm tone programmatically
+        guard let url = createAlarmTone() else {
+            // Fallback to system sound if tone creation fails
+            AudioServicesPlaySystemSound(1007) // Pleasant notification sound
+            return
+        }
+
+        do {
+            audioPlayer = try AVAudioPlayer(contentsOf: url)
+            audioPlayer?.numberOfLoops = 0 // Play once, we'll repeat via timer
+            audioPlayer?.volume = 0.8 // Slightly reduced volume
+            audioPlayer?.play()
+        } catch {
+            // Fallback to system sound - use a less intense notification sound
+            AudioServicesPlaySystemSound(1007) // Notification sound - less jarring than alarm
+        }
+    }
+
+    private func createAlarmTone() -> URL? {
+        // Create a simple alarm tone in memory
+        guard let tempDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            return nil
+        }
+
+        // Generate a simple wav file programmatically
+        // This is a simplified approach - in production, you'd want to use AudioToolbox or include actual alarm files
+        let fileURL = tempDir.appendingPathComponent("emergency_alarm.wav")
+
+        // For now, return nil to use fallback system sound
+        // In a production app, you'd include a custom alarm.wav file in the bundle
+        return nil
+    }
+}
+```
+
+### 2. PreferencesManager.swift - Emergency Override Settings
+```swift
+// ADD THESE PROPERTIES TO PreferencesManager FOR MVP2:
+
+@Published var emergencyAlertBypassSilent: Bool {
+    didSet {
+        UserDefaults.standard.set(emergencyAlertBypassSilent, forKey: emergencyAlertBypassKey)
+    }
+}
+
+@Published var emergencyOverrideDistanceMiles: Double {
+    didSet {
+        UserDefaults.standard.set(emergencyOverrideDistanceMiles, forKey: emergencyOverrideDistanceKey)
+    }
+}
+
+// ADD THESE KEYS:
+private let emergencyAlertBypassKey = "emergency_alert_bypass_silent"
+private let emergencyOverrideDistanceKey = "emergency_override_distance_miles"
+
+// ADD TO INIT:
+self.emergencyAlertBypassSilent = UserDefaults.standard.bool(forKey: emergencyAlertBypassKey)
+self.emergencyOverrideDistanceMiles = UserDefaults.standard.double(forKey: emergencyOverrideDistanceKey) == 0 ? 0.5 : UserDefaults.standard.double(forKey: emergencyOverrideDistanceKey)
+```
+
+### 3. SafetyAlertsSettingsView.swift - Emergency Override UI
+```swift
+// ADD THIS SECTION TO SafetyAlertsSettingsView FOR MVP2:
+
+Section {
+    VStack(alignment: .leading, spacing: 12) {
+        HStack {
+            Image(systemName: "speaker.wave.3")
+                .foregroundColor(.red)
+                .font(.title2)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(preferencesManager.currentLanguage == "es" ? 
+                     "Anular Modo Silencioso" : 
+                     "Override Silent Mode")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                
+                Text(preferencesManager.currentLanguage == "es" ? 
+                     "Reproducir alertas de emergencia incluso en modo silencioso" : 
+                     "Play emergency alerts even when phone is on silent")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            
+            Spacer()
+            
+            if preferencesManager.emergencyAlertBypassSilent && preferencesManager.enableSoundAlerts {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.red)
+                    .font(.title3)
+            }
+        }
+        .padding(.vertical, 4)
+        
+        // Warning about requiring special permission
+        if preferencesManager.enableSoundAlerts {
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.triangle")
+                    .foregroundColor(.orange)
+                    .font(.caption)
+                
+                Text(preferencesManager.currentLanguage == "es" ? 
+                     "Requiere permisos especiales de Apple. Disponible en versión futura." : 
+                     "Requires special Apple permissions. Available in future version.")
+                    .font(.caption)
+                    .foregroundColor(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.top, 4)
+        }
+    }
+} footer: {
+    if preferencesManager.enableSoundAlerts {
+        VStack(alignment: .leading, spacing: 8) {
+            Toggle("", isOn: $preferencesManager.emergencyAlertBypassSilent)
+                .labelsHidden()
+        }
+        
+        // Distance selection for emergency override
+        if preferencesManager.emergencyAlertBypassSilent && preferencesManager.enableSoundAlerts {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(preferencesManager.currentLanguage == "es" ? 
+                     "Distancia de Emergencia:" : 
+                     "Emergency Distance:")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                
+                ForEach([0.25, 0.5, 1.0, 2.0], id: \\.self) { distance in
+                    Button(action: {
+                        preferencesManager.emergencyOverrideDistanceMiles = distance
+                    }) {
+                        HStack {
+                            Image(systemName: preferencesManager.emergencyOverrideDistanceMiles == distance ? "checkmark.circle.fill" : "circle")
+                                .foregroundColor(preferencesManager.emergencyOverrideDistanceMiles == distance ? .red : .gray)
+                            
+                            Text(distance == 1.0 ? 
+                                 (preferencesManager.currentLanguage == "es" ? "1 milla" : "1 mile") :
+                                 (preferencesManager.currentLanguage == "es" ? "\\(distance, specifier: "%.2g") millas" : "\\(distance, specifier: "%.2g") miles"))
+                                .foregroundColor(.primary)
+                            
+                            Spacer()
+                            
+                            if preferencesManager.emergencyOverrideDistanceMiles == distance {
+                                Text(preferencesManager.currentLanguage == "es" ? 
+                                     "Seleccionado" : 
+                                     "Selected")
+                                    .font(.caption)
+                                    .foregroundColor(.red)
+                            }
+                        }
+                        .padding(.vertical, 2)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+            }
+            .padding(.top, 8)
+        }
+    }
+}
+```
+
+### 4. ContentView.swift - Emergency Override Logic
+```swift
+// RESTORE THIS LOGIC IN showPersistentAlert FOR MVP2:
+
+private func showPersistentAlert(for report: Report, isFromFavorite: Bool, favoriteName: String? = nil, favoriteDistance: Double? = nil) {
+    guard preferencesManager.enableSoundAlerts else { return }
+
+    // Calculate location name and distance
+    let reportLocation = CLLocation(latitude: report.location.latitude, longitude: report.location.longitude)
+    var locationName = "Unknown location"
+    var distanceText = ""
+    var actualDistance: Double = Double.greatestFiniteMagnitude
+
+    // Determine actual distance for emergency override check
+    if isFromFavorite, let favDistance = favoriteDistance {
+        actualDistance = favDistance
+    } else if let userLoc = self.userLocation {
+        let userLocation = CLLocation(latitude: userLoc.latitude, longitude: userLoc.longitude)
+        actualDistance = userLocation.distance(from: reportLocation)
+    }
+
+    // Only override silent mode if within the emergency override distance
+    let emergencyOverrideMeters = preferencesManager.emergencyOverrideDistanceMiles * 1609.34
+    let shouldOverrideSilent = preferencesManager.emergencyAlertBypassSilent && actualDistance <= emergencyOverrideMeters
+
+    // Get location name through reverse geocoding
+    GeocodingService.shared.getAddress(from: report.location) { address in
+        DispatchQueue.main.async {
+            locationName = address
+
+            // Calculate distance
+            if isFromFavorite, let favName = favoriteName, let favDistance = favoriteDistance {
+                locationName = favName
+                distanceText = self.formatDistance(favDistance)
+            } else if let userLoc = self.userLocation {
+                let userLocation = CLLocation(latitude: userLoc.latitude, longitude: userLoc.longitude)
+                let distance = userLocation.distance(from: reportLocation)
+                distanceText = self.formatDistance(distance)
+            }
+
+            // Create alert data
+            let alertData = AlertNotificationData(
+                message: isFromFavorite ? self.preferencesManager.localizedString("safety_issue_near_favorite") : self.preferencesManager.localizedString("safety_issue_in_area"),
+                locationName: locationName,
+                distance: distanceText,
+                reportId: report.id,
+                report: report,
+                shouldOverrideSilent: shouldOverrideSilent  // THIS IS KEY FOR MVP2
+            )
+
+            // Show persistent alert
+            self.activeAlert = alertData
+            self.showingAlertNotification = true
+        }
+    }
+}
+```
+
+### 5. Info.plist Updates for MVP2
+```xml
+<!-- Add after getting Apple's Critical Alerts entitlement -->
+<key>NSUserNotificationAlertStyle</key>
+<string>critical</string>
+
+<!-- Background modes already added -->
+<key>UIBackgroundModes</key>
+<array>
+    <string>audio</string>
+    <string>remote-notification</string>
+</array>
+```
+
+### 6. Critical Alerts Implementation for MVP2
+```swift
+// Update notification creation to use critical alerts:
+
+let content = UNMutableNotificationContent()
+content.title = "Emergency Safety Alert"
+content.body = "Safety report within emergency distance"
+content.sound = UNNotificationSound.criticalSoundNamed(UNNotificationSoundName("emergency_alarm.wav"))
+content.interruptionLevel = .critical  // iOS 15+
+
+let request = UNNotificationRequest(
+    identifier: "critical_safety_alert",
+    content: content,
+    trigger: nil
+)
+```
+
+## IMPLEMENTATION STEPS FOR MVP2:
+
+1. **Apply for Critical Alerts Entitlement**
+   - Submit request to Apple explaining safety use case
+   - Provide justification for why app needs to override DND/silent mode
+
+2. **Restore Code**
+   - Add back all the above code sections
+   - Include emergency override distance settings
+   - Restore mute button functionality
+
+3. **Test with Entitlement**
+   - Test on physical devices with silent mode
+   - Verify sounds play through speaker even on silent
+   - Test emergency distance thresholds
+
+4. **Add Custom Alarm Sounds**
+   - Include safety_alarm.wav in app bundle
+   - Create emergency-specific alarm tones
+   - Test volume levels and urgency
+
+## NOTES:
+- Current implementation uses .playAndRecord audio category which SHOULD override silent mode but doesn't work reliably
+- Critical Alerts is the only guaranteed way to override silent mode and Do Not Disturb
+- Medical apps like Libre Freestyle use this exact approach
+- Users must explicitly enable Critical Alerts in iOS Settings after install
+
+## USER GUIDE SECTION TO RESTORE FOR MVP2:
+
+### ContentView.swift - Add back to UserGuideView
+```swift
+// Emergency Override - ADD THIS BACK TO THE USER GUIDE FOR MVP2
+HowToStep(
+    icon: "speaker.wave.3.fill",
+    title: preferencesManager.localizedString("enable_emergency_alerts"),
+    description: preferencesManager.localizedString("emergency_alerts_description")
+)
+```
+
+### PreferencesManager.swift - Localized Strings to Add Back
+```swift
+// English
+"enable_emergency_alerts": "Enable Emergency Alerts",
+"emergency_alerts_description": "In Settings → Alerts, enable 'Emergency Alert Mode' to bypass your phone's silent settings for critical safety alerts. Set a smaller emergency override distance for the most urgent alerts only.",
+
+// Spanish  
+"enable_emergency_alerts": "Habilitar Alertas de Emergencia",
+"emergency_alerts_description": "En Configuración → Alertas, habilita 'Modo de Alerta de Emergencia' para sobrepasar la configuración de silencio de tu teléfono para alertas críticas de seguridad. Establece una distancia de anulación de emergencia menor solo para las alertas más urgentes.",
+```
+
+## CURRENT STATUS:
+All override alarm functionality has been removed from MVP1 to keep the app simple and focused on core functionality. Regular notifications work perfectly and provide good user experience without requiring special permissions.

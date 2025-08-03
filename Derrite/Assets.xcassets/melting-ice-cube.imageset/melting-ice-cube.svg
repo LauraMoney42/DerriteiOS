@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="iceGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.9"/>
+      <stop offset="100%" style="stop-color:#ffffff;stop-opacity:0.6"/>
+    </linearGradient>
+    <linearGradient id="meltGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.7"/>
+      <stop offset="100%" style="stop-color:#ffffff;stop-opacity:0.3"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Ice cube main body - more rounded corners -->
+  <path d="M15 20 Q15 15 20 15 L80 15 Q85 15 85 20 L85 50 Q85 55 80 55 L20 55 Q15 55 15 50 Z" 
+        fill="url(#iceGradient)" 
+        stroke="#ffffff" 
+        stroke-width="2" 
+        stroke-opacity="0.8"/>
+  
+  <!-- Subtle 3D effect lines -->
+  <path d="M20 15 L80 15 L75 10 L25 10 Z" 
+        fill="#ffffff" 
+        fill-opacity="0.8" 
+        stroke="#ffffff" 
+        stroke-width="1" 
+        stroke-opacity="0.6"/>
+  
+  <path d="M80 15 L85 20 L85 50 L80 55" 
+        fill="#ffffff" 
+        fill-opacity="0.4" 
+        stroke="#ffffff" 
+        stroke-width="1" 
+        stroke-opacity="0.4"/>
+  
+  <!-- Organic melting flows from bottom -->
+  <path d="M25 55 Q20 65 25 75 Q30 80 25 85 Q15 90 20 95 Q30 100 40 95 Q35 85 40 80 Q45 75 40 70 Q35 60 30 55" 
+        fill="url(#meltGradient)"/>
+  
+  <path d="M50 55 Q45 62 50 68 Q55 72 50 78 Q45 82 50 88 Q55 92 60 88 Q65 82 60 78 Q55 72 60 68 Q65 62 60 55" 
+        fill="url(#meltGradient)"/>
+  
+  <path d="M75 55 Q70 60 75 70 Q80 75 75 80 Q70 85 75 90 Q85 95 90 90 Q85 85 90 80 Q95 75 90 70 Q85 65 80 60 Q75 55 75 55" 
+        fill="url(#meltGradient)"/>
+  
+  <!-- Natural puddle shape -->
+  <path d="M10 85 Q15 80 25 82 Q35 85 45 87 Q55 88 65 87 Q75 85 85 82 Q95 80 90 85 Q85 90 75 92 Q65 94 55 94 Q45 94 35 92 Q25 90 15 88 Q10 85 10 85" 
+        fill="url(#meltGradient)" 
+        stroke="#ffffff" 
+        stroke-width="1" 
+        stroke-opacity="0.3"/>
+</svg>
